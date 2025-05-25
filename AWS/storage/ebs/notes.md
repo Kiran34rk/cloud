@@ -1,152 +1,112 @@
-# 🧠 Amazon EBS (Elastic Block Store) – Detailed Notes
+# AWS EBS (Elastic Block Store) - Detailed Notes
 
----
+## Overview
+- **Purpose**: Provides persistent block storage volumes for use with EC2 instances
+- **Characteristics**:
+  - Network-attached storage (not instance storage)
+  - Persists independently from instance life
+  - Replicated within a single Availability Zone (AZ)
+  - Can be attached to only one EC2 instance at a time (except multi-attach)
 
-## 🔹 1. What is Amazon EBS?
+## Volume Types
 
-- Amazon EBS is a **block storage** service for **EC2 instances**.
-- It provides **durable, high-performance** volumes that persist independently of EC2.
-- Common use cases:
-  - Databases (MySQL, Oracle, MongoDB)
-  - File systems
-  - Boot volumes
-  - Enterprise applications
+### SSD-backed Volumes
+1. **gp3 (General Purpose SSD)**
+   - Baseline performance: 3,000 IOPS, 125 MB/s throughput
+   - Scalable up to 16,000 IOPS and 1,000 MB/s (independent of volume size)
+   - Cost-effective for most workloads
+   - Default EBS volume type
 
----
+2. **gp2 (Previous Generation)**
+   - Performance scales with volume size (3 IOPS per GB)
+   - Burst capability up to 3,000 IOPS
+   - Max 16,000 IOPS and 250 MB/s throughput
 
-## 🔹 2. EBS Volume Types
+3. **io1/io2 (Provisioned IOPS SSD)**
+   - High-performance for mission-critical apps
+   - Supports up to 64,000 IOPS (io1) or 256,000 IOPS (io2)
+   - io2 has better durability (99.999% vs 99.8-99.9%)
+   - Supports Multi-Attach (up to 16 instances)
 
-| Type         | Use Case                                 | Performance                         | Notes                              |
-|--------------|-------------------------------------------|--------------------------------------|-------------------------------------|
-| gp3          | General purpose SSD                       | Up to 16,000 IOPS, 1,000 MB/s        | Recommended for most workloads      |
-| gp2          | General purpose SSD                       | 3 IOPS per GB (up to 16,000 IOPS)    | Performance tied to size            |
-| io2 / io2 Block Express | High-performance SSD            | Up to 256,000 IOPS                   | For IOPS-intensive workloads         |
-| st1          | Throughput optimized HDD                  | Max 500 MB/s                         | Big data, logs                      |
-| sc1          | Cold HDD                                  | Max 250 MB/s                         | Infrequent access, low-cost         |
-| Magnetic     | Deprecated                                | Low throughput                       | Legacy only                         |
+### HDD-backed Volumes
+1. **st1 (Throughput Optimized HDD)**
+   - Low-cost HDD for frequently accessed, throughput-intensive workloads
+   - Max throughput 500 MB/s
+   - Not suitable for boot volumes
 
----
+2. **sc1 (Cold HDD)**
+   - Lowest cost option for less frequently accessed data
+   - Max throughput 250 MB/s
+   - Not suitable for boot volumes
 
-## 🔹 3. Key Features
+## Key Features
 
-- **Durability**: 99.999% availability; auto-replicated within AZ.
-- **Scalability**: Resize without downtime.
-- **Snapshots**: Point-in-time backups to S3.
-- **Encryption**: AWS KMS-managed encryption at rest and transit.
-- **Lifecycle Management**: Automate snapshots with DLM.
-- **Multi-Attach**: io1/io2 volumes support multi-attach to EC2.
+### Snapshots
+- **Point-in-time copies** of EBS volumes
+- Stored in S3 (but not visible in S3 console)
+- **Incremental** - only stores changed blocks since last snapshot
+- Can create new volumes or AMIs from snapshots
+- Can be shared across AWS accounts
+- Can be copied across regions
 
----
+### Encryption
+- **AES-256 encryption** at rest
+- Encryption occurs on servers hosting EC2 instances
+- Minimal performance impact
+- Encrypted volumes can only be attached to supported instance types
 
-## 🔹 4. Volume Lifecycle
+### Multi-Attach
+- Available only for **io1/io2** volumes
+- Single volume can be attached to **multiple Nitro-based instances**
+- All instances must be in the same AZ
+- Use cases: clustered applications (e.g., Oracle RAC)
 
-1. **Create Volume**
-2. **Attach to EC2**
-3. **Mount & Format**
-4. **Use**
-5. **Snapshot**
-6. **Delete**
+### Lifecycle Manager
+- Automates creation, retention, and deletion of EBS snapshots
+- Can create policies based on tags
+- Helps meet compliance requirements
 
----
+## Performance Considerations
 
-## 🔹 5. Performance Concepts
+### IOPS and Throughput
+- **IOPS**: Input/output operations per second
+- **Throughput**: Data transfer rate (MB/s)
+- SSD volumes measured in IOPS
+- HDD volumes measured in MB/s
 
-- **IOPS**: Input/output operations per second.
-- **Throughput**: Data transfer rate (MB/s).
-- **Bursting**:
-  - gp2 and st1 use burst credits.
-  - gp3 allows provisioned IOPS and throughput.
+### Burst Performance
+- gp2 volumes use burst buckets
+- Earn credits at baseline rate (3 IOPS/GB)
+- Spend credits during bursts (up to 3,000 IOPS)
 
----
+### Best Practices
+- Use EBS-optimized instances for consistent performance
+- For high performance: Use Provisioned IOPS (io1/io2)
+- For throughput-heavy workloads: Use st1
+- Monitor using CloudWatch metrics:
+  - `VolumeReadBytes`, `VolumeWriteBytes`
+  - `VolumeReadOps`, `VolumeWriteOps`
+  - `VolumeTotalReadTime`, `VolumeTotalWriteTime`
 
-## 🔹 6. Snapshots
+## Pricing Factors
+- **Volume type** (gp3, io2, st1, etc.)
+- **Storage amount** (GB provisioned per month)
+- **IOPS** (for io1/io2 and additional gp3 IOPS)
+- **Throughput** (for additional gp3 throughput)
+- **Snapshots** (based on stored data)
+- **Data transfer** (outbound and cross-region)
 
-- **Stored in S3**
-- **Incremental**: Only changes since last snapshot.
-- **Use cases**:
-  - Backups
-  - Volume restoration
-  - Cross-region copy
+## Limits
+- **Volume size**: 1 GiB to 16 TiB
+- **Maximum IOPS**:
+  - gp3: 16,000
+  - io1: 64,000
+  - io2: 256,000
+- **Attachments per instance**: Up to 40 volumes (instance type dependent)
 
-### 🔸 Automated Snapshots
-- Via **AWS Backup** or **Data Lifecycle Manager (DLM)**.
-
----
-
-## 🔹 7. Encryption
-
-- Uses **AWS KMS** (default or custom keys).
-- Encrypt:
-  - At creation
-  - Snapshots
-  - New volumes from encrypted snapshot
-- Cannot encrypt an existing unencrypted volume directly.
-
----
-
-## 🔹 8. Resizing and Modifying Volumes
-
-- Use AWS Console or CLI (`modify-volume`).
-- Post-resize: Expand file system using:
-  - `resize2fs` for ext4
-  - `xfs_growfs` for xfs
-
----
-
-## 🔹 9. EBS vs Instance Store
-
-| Feature              | EBS                             | Instance Store                    |
-|----------------------|----------------------------------|----------------------------------|
-| Durability           | Persistent                       | Ephemeral                        |
-| Data Persistence     | Yes                              | No                               |
-| Backup               | Snapshot support                 | No backup                        |
-| Size Flexibility     | Configurable                     | Fixed size                       |
-| Use Cases            | Databases, logs, apps            | Caching, temporary data          |
-
----
-
-## 🔹 10. Pricing Model
-
-You are charged for:
-- **Provisioned storage (GB/month)**
-- **Provisioned IOPS** (for gp3/io2)
-- **Snapshot storage**
-- **Cross-region snapshot transfers**
-
----
-
-## 🔹 11. Monitoring (via CloudWatch)
-
-Key metrics:
-- `VolumeReadOps`
-- `VolumeWriteOps`
-- `VolumeQueueLength`
-- `BurstBalance`
-- `VolumeThroughputPercentage`
-
----
-
-## 🔹 12. AWS CLI Commands
-
-```bash
-# Create EBS volume
-aws ec2 create-volume \
-  --availability-zone us-east-1a \
-  --size 20 \
-  --volume-type gp3
-
-# Attach to EC2 instance
-aws ec2 attach-volume \
-  --volume-id vol-xxxxxxxx \
-  --instance-id i-xxxxxxxx \
-  --device /dev/xvdf
-
-# Create snapshot
-aws ec2 create-snapshot \
-  --volume-id vol-xxxxxxxx \
-  --description "Backup snapshot"
-
-# Modify volume
-aws ec2 modify-volume \
-  --volume-id vol-xxxxxxxx \
-  --size 100
+## Use Cases
+- **Boot volumes** for EC2 instances
+- **Database storage** (RDS uses EBS under the hood)
+- **Enterprise applications** requiring persistent storage
+- **Big data analytics** workloads
+- **Container storage** for stateful containers
